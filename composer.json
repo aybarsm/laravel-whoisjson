@@ -1,7 +1,7 @@
 {
     "name": "aybarsm/laravel-whoisjson",
     "version": "dev-main",
-    "description": "An opinionated Laravel service provider package for whoisjson.com",
+    "description": "An opinionated Laravel service provider package for whoisjson.com wrapper",
     "type": "library",
     "license": "MIT",
     "keywords": ["aybarsm", "php", "laravel", "whois", "whoisjson"],
