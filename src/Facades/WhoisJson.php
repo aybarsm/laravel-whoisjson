@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static string xml(\Aybarsm\Laravel\WhoisJson\Enums\Endpoint|string $endpoint, array $query = [])
  * @method static \Illuminate\Http\Client\Response response(\Aybarsm\Laravel\WhoisJson\Enums\Endpoint|string $endpoint, array $query = [], ?\Aybarsm\Laravel\WhoisJson\Enums\Format $format = null)
  * @method static \Illuminate\Http\Client\PendingRequest request(?\Aybarsm\Laravel\WhoisJson\Enums\Format $format = null)
+ * @method static \Aybarsm\Laravel\WhoisJson\Support\RateLimiter limiter()
  * @method static \Aybarsm\Laravel\WhoisJson\WhoisJson fresh(bool $forceRefresh = true)
  * @method static \Aybarsm\Laravel\WhoisJson\WhoisJson cached()
  * @method static \Illuminate\Http\Client\Response|null lastResponse()

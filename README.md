@@ -34,6 +34,7 @@ Everything else has a working default:
 | `WHOISJSON_API_KEY`          | —                                | Required.                                                     |
 | `WHOISJSON_API_BASE_URL`     | `https://whoisjson.com/api/v1`   |                                                               |
 | `WHOISJSON_API_TOKEN_TYPE`   | `TOKEN=`                         | Prefix for the `Authorization` header.                        |
+| `WHOISJSON_API_RATE_LIMIT`   | `0`                              | Requests per minute. `0` disables client-side pacing.         |
 | `WHOISJSON_TIMEOUT`          | `30`                             | Seconds.                                                      |
 | `WHOISJSON_CONNECT_TIMEOUT`  | `10`                             | Seconds.                                                      |
 | `WHOISJSON_RETRY_TIMES`      | `2`                              | Total attempts. `1` disables retrying.                        |
@@ -41,6 +42,37 @@ Everything else has a working default:
 | `WHOISJSON_FORCE_REFRESH`    | `false`                          | Sends `_forceRefresh=1` on every call. Costs 2x credits.      |
 
 Retries cover connection failures plus `429`, `500`, `502`, `503` and `504`. Other 4xx statuses fail immediately.
+
+### Rate limiting
+
+The API enforces a per-minute limit on a rolling 60-second window, and the ceiling depends on your plan:
+
+| Plan  | Monthly quota   | `WHOISJSON_API_RATE_LIMIT` |
+|-------|-----------------|-----------------------------|
+| Basic | 1,000 req/mo    | `20`                        |
+| Pro   | 30,000 req/mo   | `40`                        |
+| Ultra | 150,000 req/mo  | `60`                        |
+| Scale | 1,000,000 req/mo| `100`                       |
+| Mega  | unlimited       | `100`                       |
+| Giga  | unlimited       | `200`                       |
+| Tera  | unlimited       | `300`                       |
+| Atlas | unlimited       | `900`                       |
+
+Set yours and the package paces itself over the same rolling window — a call that would exceed the limit waits for the next free slot instead of earning a `429`:
+
+```dotenv
+WHOISJSON_API_RATE_LIMIT=40
+```
+
+The default is `0`, which disables pacing entirely: without knowing your plan the package cannot pick a safe number, and guessing the Basic tier would silently make a Scale-plan bulk run five times slower. Leaving it off is not unsafe — `429`s are still retried — but setting it is strongly recommended for bulk work.
+
+Window state lives in your **default cache store**, so the limit is enforced across every process sharing that store (Redis, database, …). With the `array` store it is per-process. Retry attempts each count as a call, as they do server-side, and the throttle applies to `request()` too.
+
+```php
+WhoisJson::limiter()->enabled();     // bool
+WhoisJson::limiter()->used();        // calls made in the current window
+WhoisJson::limiter()->remaining();   // calls still allowed in it
+```
 
 ## Usage
 

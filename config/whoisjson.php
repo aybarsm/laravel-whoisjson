@@ -25,6 +25,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Rate Limit
+    |--------------------------------------------------------------------------
+    |
+    | Requests per minute allowed by your plan, paced client-side over the same
+    | rolling 60-second window the API enforces. Calls beyond the limit wait for
+    | a slot instead of earning a 429. Set 0 to disable the pacing entirely.
+    |
+    | Basic 20 | Pro 40 | Ultra 60 | Scale 100
+    | Mega 100 | Giga 200 | Tera 300 | Atlas 900
+    |
+    | @see https://whoisjson.com/bulk-whois-api
+    |
+    */
+
+    'api_rate_limit' => (int) env('WHOISJSON_API_RATE_LIMIT', 0),
+
+    /*
+    |--------------------------------------------------------------------------
     | Transport
     |--------------------------------------------------------------------------
     |

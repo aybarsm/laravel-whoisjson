@@ -7,13 +7,16 @@ namespace Aybarsm\Laravel\WhoisJson;
 use Aybarsm\Laravel\WhoisJson\Enums\Endpoint;
 use Aybarsm\Laravel\WhoisJson\Enums\Format;
 use Aybarsm\Laravel\WhoisJson\Exceptions\WhoisJsonException;
+use Aybarsm\Laravel\WhoisJson\Support\RateLimiter;
 use Illuminate\Container\Attributes\Config;
 use Illuminate\Container\Attributes\Singleton;
+use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
+use Psr\Http\Message\RequestInterface;
 use Throwable;
 
 /**
@@ -31,11 +34,15 @@ class WhoisJson
 
     protected ?Response $lastResponse = null;
 
+    protected ?RateLimiter $limiter = null;
+
     public function __construct(
         protected readonly Factory $http,
+        protected readonly CacheFactory $cache,
         #[Config('whoisjson.api_base_url')] public readonly string $apiBaseUrl,
         #[Config('whoisjson.api_key')] protected readonly ?string $apiKey,
         #[Config('whoisjson.api_token_type')] public readonly string $apiTokenType,
+        #[Config('whoisjson.api_rate_limit')] public readonly int $apiRateLimit,
         #[Config('whoisjson.timeout')] public readonly int $timeout,
         #[Config('whoisjson.connect_timeout')] public readonly int $connectTimeout,
         #[Config('whoisjson.retry.times')] public readonly int $retryTimes,
@@ -212,7 +219,28 @@ class WhoisJson
                 sleepMilliseconds: $this->retrySleep,
                 when: $this->shouldRetry(...),
                 throw: false,
+            )
+            // Paced as middleware rather than in `response()` so the escape hatch
+            // and every retry attempt are throttled too — each is its own API call.
+            ->when($this->limiter()->enabled(), fn (PendingRequest $request): PendingRequest => $request
+                ->withRequestMiddleware(function (RequestInterface $request): RequestInterface {
+                    $this->limiter()->throttle();
+
+                    return $request;
+                })
             );
+    }
+
+    /**
+     * The client-side pacer for the plan's per-minute rate limit.
+     */
+    public function limiter(): RateLimiter
+    {
+        return $this->limiter ??= new RateLimiter(
+            cache: $this->cache->store(),
+            key: 'whoisjson:rate-limit:'.hash('xxh128', $this->apiBaseUrl.$this->apiKey),
+            perMinute: $this->apiRateLimit,
+        );
     }
 
     /**
