@@ -17,14 +17,26 @@ class WhoisJsonServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-
+        $this->publishConfig();
     }
 
     private function registerConfig(): void
     {
         $this->mergeConfigFrom(
-            path: __DIR__ . '/../config/whoisjson.php',
+            path: __DIR__.'/../config/whoisjson.php',
             key: 'whoisjson'
+        );
+    }
+
+    private function publishConfig(): void
+    {
+        if (! $this->app->runningInConsole()) {
+            return;
+        }
+
+        $this->publishes(
+            paths: [__DIR__.'/../config/whoisjson.php' => $this->app->configPath('whoisjson.php')],
+            groups: ['whoisjson', 'whoisjson-config']
         );
     }
 }
