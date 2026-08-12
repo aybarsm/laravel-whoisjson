@@ -1,0 +1,54 @@
+{
+    "name": "aybarsm/laravel-whoisjson",
+    "version": "dev-main",
+    "description": "An opinionated Laravel service provider package for whoisjson.com",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["aybarsm", "php", "laravel", "whois", "whoisjson"],
+    "homepage": "https://www.github.com/aybarsm/laravel-whoisjson",
+    "support": {
+        "email": "dev@blrm.net"
+    },
+    "authors": [
+        {
+            "name": "Murat Aybars",
+            "email": "murat.aybars@blrm.net",
+            "homepage": "https://www.blrm.net",
+            "role": "Founder"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "laravel/framework": "^13.0",
+        "whoisjson/whoisjson": "^1.0"
+    },
+    "require-dev": {
+        "pestphp/pest": "^4.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Aybarsm\\Laravel\\WhoisJson\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Aybarsm\\Laravel\\WhoisJson\\WhoisJsonServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "optimize-autoloader": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
