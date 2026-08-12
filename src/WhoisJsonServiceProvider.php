@@ -11,6 +11,8 @@ class WhoisJsonServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->registerConfig();
+        $this->app->singleton(WhoisJson::class, WhoisJson::class);
+        $this->app->alias(WhoisJson::class, 'whoisjson');
     }
 
     public function boot(): void
