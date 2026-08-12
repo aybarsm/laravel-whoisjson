@@ -21,9 +21,7 @@
         "php": "^8.4",
         "laravel/framework": "^13.0"
     },
-    "require-dev": {
-        "pestphp/pest": "^4.4"
-    },
+    "require-dev": {},
     "autoload": {
         "psr-4": {
             "Aybarsm\\Laravel\\WhoisJson\\": "src"
