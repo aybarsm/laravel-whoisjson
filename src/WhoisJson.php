@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Aybarsm\Laravel\WhoisJson;
 
+use Aybarsm\Laravel\WhoisJson\Concerns\ReadsRemainingRequests;
 use Aybarsm\Laravel\WhoisJson\Enums\Endpoint;
 use Aybarsm\Laravel\WhoisJson\Enums\Format;
+use Aybarsm\Laravel\WhoisJson\Events\ResponseVerified;
 use Aybarsm\Laravel\WhoisJson\Exceptions\WhoisJsonException;
 use Aybarsm\Laravel\WhoisJson\Support\RateLimiter;
 use Illuminate\Container\Attributes\Config;
@@ -27,6 +29,8 @@ use Throwable;
 #[Singleton]
 class WhoisJson
 {
+    use ReadsRemainingRequests;
+
     /**
      * Statuses worth another attempt: the quota/rate limiter and server-side faults.
      */
@@ -191,12 +195,14 @@ class WhoisJson
      */
     public function response(Endpoint|string $endpoint, array $query = [], ?Format $format = null): Response
     {
+        $query = $this->query($query, $format);
+
         $response = $this->request($format)->get(
             url: $endpoint instanceof Endpoint ? $endpoint->path() : ltrim($endpoint, '/'),
-            query: $this->query($query, $format),
+            query: $query,
         );
 
-        return $this->verify($response);
+        return $this->verify($endpoint, $query, $response);
     }
 
     /**
@@ -275,9 +281,7 @@ class WhoisJson
      */
     public function remainingRequests(): ?int
     {
-        $remaining = $this->lastResponse?->header('Remaining-Requests');
-
-        return is_numeric($remaining) ? (int) $remaining : null;
+        return $this->remainingRequestsFrom($this->lastResponse);
     }
 
     /**
@@ -298,17 +302,24 @@ class WhoisJson
     }
 
     /**
-     * Record the response, then reject anything the API flagged as an error.
+     * Record the response, reject anything the API flagged as an error, and
+     * announce what survived.
+     *
+     * @param  array<string, mixed>  $query
      *
      * @throws WhoisJsonException
      */
-    protected function verify(Response $response): Response
+    protected function verify(Endpoint|string $endpoint, array $query, Response $response): Response
     {
         $this->lastResponse = $response;
 
         if ($response->failed() || filled(data_get($response->json(), 'error'))) {
             throw WhoisJsonException::fromResponse($response);
         }
+
+        // Resolved through the container at dispatch time rather than injected,
+        // so `Event::fake()` still intercepts however early the singleton was built.
+        event(new ResponseVerified($endpoint, $query, $response));
 
         return $response;
     }

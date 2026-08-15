@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Aybarsm\Laravel\WhoisJson\Exceptions;
 
+use Aybarsm\Laravel\WhoisJson\Concerns\ReadsRemainingRequests;
 use Illuminate\Http\Client\Response;
 use RuntimeException;
 use Throwable;
 
 class WhoisJsonException extends RuntimeException
 {
+    use ReadsRemainingRequests;
+
     public function __construct(
         string $message,
         public readonly int $status = 0,
@@ -75,8 +78,6 @@ class WhoisJsonException extends RuntimeException
      */
     public function remainingRequests(): ?int
     {
-        $remaining = $this->response?->header('Remaining-Requests');
-
-        return is_numeric($remaining) ? (int) $remaining : null;
+        return $this->remainingRequestsFrom($this->response);
     }
 }

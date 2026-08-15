@@ -166,6 +166,25 @@ try {
 }
 ```
 
+### Events
+
+Every response that verifies as successful dispatches `ResponseVerified` just before it is returned. Failed calls throw instead and dispatch nothing, so a listener only ever sees good data:
+
+```php
+use Aybarsm\Laravel\WhoisJson\Events\ResponseVerified;
+
+Event::listen(function (ResponseVerified $event): void {
+    $event->endpoint;             // Endpoint enum case, or the raw path string
+    $event->query;                // the query as sent, incl. format / _forceRefresh
+    $event->response;             // Illuminate\Http\Client\Response
+    $event->json();               // decoded body
+    $event->remainingRequests();  // int|null
+    $event->forcedRefresh();      // bool — did this call cost 2x credits?
+});
+```
+
+Useful for logging lookups, tracking credit burn, or warming your own cache. Retries dispatch once, for the attempt that succeeded; the raw `request()` escape hatch does no verification and so dispatches nothing.
+
 ### XML and undocumented paths
 
 ```php
