@@ -36,6 +36,15 @@ class WhoisJson
      */
     protected const RETRYABLE_STATUSES = [429, 500, 502, 503, 504];
 
+    /**
+     * How long a cached quota reading stays usable, in seconds.
+     *
+     * The quota resets monthly, but the reset date is not exposed, so a reading
+     * is only ever "last known". A bounded lifetime lets a stale one age out on
+     * its own instead of misreporting an exhausted quota across a rollover.
+     */
+    protected const REMAINING_REQUESTS_TTL = 86_400;
+
     protected ?Response $lastResponse = null;
 
     protected ?RateLimiter $limiter = null;
@@ -244,7 +253,7 @@ class WhoisJson
     {
         return $this->limiter ??= new RateLimiter(
             cache: $this->cache->store(),
-            key: 'whoisjson:rate-limit:'.hash('xxh128', $this->apiBaseUrl.$this->apiKey),
+            key: $this->cacheKey('rate-limit'),
             perMinute: $this->apiRateLimit,
         );
     }
@@ -278,10 +287,33 @@ class WhoisJson
 
     /**
      * Calls left in the current billing period, read from the `Remaining-Requests` header.
+     *
+     * Falls back to the reading cached by the last successful call, so the
+     * quota is still legible in a process that has not made a request yet.
      */
     public function remainingRequests(): ?int
     {
-        return $this->remainingRequestsFrom($this->lastResponse);
+        return $this->remainingRequestsFrom($this->lastResponse)
+            ?? $this->cachedRemainingRequests();
+    }
+
+    /**
+     * The quota reading persisted by the last successful call, from any process
+     * sharing the cache store.
+     */
+    public function cachedRemainingRequests(): ?int
+    {
+        $remaining = $this->cache->store()->get($this->cacheKey('remaining-requests'));
+
+        return is_numeric($remaining) ? (int) $remaining : null;
+    }
+
+    /**
+     * Discard the cached quota reading.
+     */
+    public function forgetRemainingRequests(): bool
+    {
+        return $this->cache->store()->forget($this->cacheKey('remaining-requests'));
     }
 
     /**
@@ -317,11 +349,39 @@ class WhoisJson
             throw WhoisJsonException::fromResponse($response);
         }
 
+        $this->rememberRemainingRequests($response);
+
         // Resolved through the container at dispatch time rather than injected,
         // so `Event::fake()` still intercepts however early the singleton was built.
         event(new ResponseVerified($endpoint, $query, $response));
 
         return $response;
+    }
+
+    /**
+     * Persist the quota reading a successful response reported, if it carried one.
+     */
+    protected function rememberRemainingRequests(Response $response): void
+    {
+        $remaining = $this->remainingRequestsFrom($response);
+
+        if ($remaining === null) {
+            return;
+        }
+
+        $this->cache->store()->put(
+            key: $this->cacheKey('remaining-requests'),
+            value: $remaining,
+            ttl: static::REMAINING_REQUESTS_TTL,
+        );
+    }
+
+    /**
+     * Namespace cached state per credential, so several keys never share a bucket.
+     */
+    protected function cacheKey(string $name): string
+    {
+        return "whoisjson:{$name}:".hash('xxh128', $this->apiBaseUrl.$this->apiKey);
     }
 
     protected function shouldRetry(Throwable $exception): bool

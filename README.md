@@ -146,7 +146,18 @@ WhoisJson::remainingRequests();   // int|null, from the Remaining-Requests heade
 WhoisJson::lastResponse();        // Illuminate\Http\Client\Response|null
 ```
 
-Both read the state of the instance you call them on, so a call made through `fresh()` or `cached()` records onto that clone — keep a reference to it if you need its quota reading.
+`lastResponse()` reads the state of the instance you call it on, so a call made through `fresh()` or `cached()` records onto that clone — keep a reference to it if you need its response.
+
+`remainingRequests()` does not have that limitation. Every successful call writes its reading to your **default cache store**, and the method falls back to that whenever the current instance has no response to read — a fresh process, a queued job, a clone. The value is shared by every instance using the same credentials, and keyed per credential so multiple keys never overwrite each other:
+
+```php
+// In a worker that has not called the API yet:
+WhoisJson::remainingRequests();         // 452, from the last successful call anywhere
+WhoisJson::cachedRemainingRequests();   // the cached reading on its own
+WhoisJson::forgetRemainingRequests();   // discard it
+```
+
+Only successful responses are cached, and only when they carry the header. A reading expires after 24 hours: the quota resets monthly but the API does not expose the reset date, so a stale reading ages out on its own rather than reporting an exhausted quota into the next billing period. With the `array` store the cache is per-process; Redis or database makes it shared.
 
 ### Error handling
 

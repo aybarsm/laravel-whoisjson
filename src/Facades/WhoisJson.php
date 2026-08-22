@@ -26,6 +26,8 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Aybarsm\Laravel\WhoisJson\WhoisJson cached()
  * @method static \Illuminate\Http\Client\Response|null lastResponse()
  * @method static int|null remainingRequests()
+ * @method static int|null cachedRemainingRequests()
+ * @method static bool forgetRemainingRequests()
  *
  * @see \Aybarsm\Laravel\WhoisJson\WhoisJson
  */

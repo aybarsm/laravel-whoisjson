@@ -23,6 +23,28 @@ function fakeWhoisJson(mixed $body = ['ok' => true], int $status = 200, array $h
 }
 
 /**
+ * Stub a series of whoisjson.com responses, handed back in order.
+ *
+ * @param  array<int, array{body?: mixed, status?: int, headers?: array<string, string>}>  $responses
+ */
+function fakeWhoisJsonSequence(array $responses): void
+{
+    Http::preventStrayRequests();
+
+    $sequence = Http::sequence();
+
+    foreach ($responses as $response) {
+        $sequence->push(
+            $response['body'] ?? ['ok' => true],
+            $response['status'] ?? 200,
+            $response['headers'] ?? [],
+        );
+    }
+
+    Http::fake(['whoisjson.com/*' => $sequence]);
+}
+
+/**
  * Resolve a fresh service instance, optionally overriding config first.
  *
  * The service is a singleton, so the container instance has to be discarded
